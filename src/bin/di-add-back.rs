@@ -1,6 +1,7 @@
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
+    fmt::format,
 };
 
 struct FunctionSystem<F, Input> {
@@ -57,9 +58,11 @@ impl<F: FnMut(T1, T2) -> Box<dyn Any>, T1: 'static, T2: 'static> IntoSystem<(T1,
 
 impl<F: FnMut() -> Box<dyn Any>> System for FunctionSystem<F, ()> {
     fn run(&mut self, resources: &mut HashMap<TypeId, Box<dyn Any>>) -> ResultContainer {
+        let res = (self.f)();
+        let type_id = res.type_id();
         ResultContainer {
-            result: (self.f)(),
-            type_id: TypeId::of::<()>(),
+            result: res,
+            type_id: type_id,
         }
     }
 }
@@ -71,9 +74,11 @@ impl<F: FnMut(I1) -> Box<dyn Any>, I1: 'static> System for FunctionSystem<F, (I1
             .unwrap()
             .downcast::<I1>()
             .unwrap();
+        let res = (self.f)(i1);
+        let type_id = res.type_id();
         ResultContainer {
-            result: (self.f)(i1),
-            type_id: TypeId::of::<I1>(),
+            result: res,
+            type_id: type_id,
         }
     }
 }
@@ -92,9 +97,11 @@ impl<F: FnMut(I1, I2) -> Box<dyn Any>, I1: 'static, I2: 'static> System
             .unwrap()
             .downcast::<I2>()
             .unwrap();
+        let res = (self.f)(i1, i2);
+        let type_id = res.type_id();
         ResultContainer {
-            result: (self.f)(i1, i2),
-            type_id: TypeId::of::<I1>(),
+            result: res,
+            type_id: type_id,
         }
     }
 }
@@ -111,8 +118,10 @@ impl Scheduler {
         for system in self.systems.iter_mut() {
             // let res: &'static mut dyn Any = Box::leak(system.run(&mut self.resources));
             let result_container = system.run(&mut self.resources);
-            self.resources
-                .insert(result_container.type_id, result_container.result);
+            self.resources.insert(
+                result_container.result.as_ref().type_id(),
+                result_container.result,
+            );
         }
     }
 
@@ -130,6 +139,10 @@ impl Scheduler {
     }
 }
 
+struct Dep {
+    string: String,
+}
+
 fn get_i32() -> i32 {
     42
 }
@@ -138,15 +151,23 @@ fn get_string() -> String {
     "Hello, World!".to_string()
 }
 
-fn start_system(i: i32, s: String) -> Box<dyn Any> {
-    println!("i: {}, s: {}", i, s);
+fn make_dep_system(i: i32, s: String) -> Box<dyn Any> {
+    println!("Made Dep: i: {}, s: {}", i, s);
+    Box::new(Dep {
+        string: format!("i: {}, s: {}", i, s),
+    })
+}
+
+fn final_system(d: Dep) -> Box<dyn Any> {
+    println!("final system dep string: {}", d.string);
     Box::new(())
 }
 
 fn main() {
     Scheduler::new()
-        .add_system(start_system)
+        .add_system(make_dep_system)
         .add_resource(get_i32())
         .add_resource(get_string())
+        .add_system(final_system)
         .run();
 }
