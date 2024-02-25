@@ -88,7 +88,7 @@ impl<F: FnMut(I1, I2) -> Box<dyn Any>, I1: 'static, I2: 'static> System
             .downcast::<I1>()
             .unwrap();
         let i2 = *resources
-            .remove(&TypeId::of::<I1>())
+            .remove(&TypeId::of::<I2>())
             .unwrap()
             .downcast::<I2>()
             .unwrap();
@@ -121,7 +121,10 @@ impl Scheduler {
         self
     }
 
-    pub fn add_system<S: System + 'static>(&mut self, system: S) -> &mut Self {
+    pub fn add_system<I, S: System + 'static>(
+        &mut self,
+        system: impl IntoSystem<I, System = S>,
+    ) -> &mut Self {
         self.systems.push(Box::new(system.into_system()));
         self
     }
@@ -146,5 +149,4 @@ fn main() {
         .add_resource(get_i32())
         .add_resource(get_string())
         .run();
-    println!("list: {:?}", 2); // Prints "not a match"
 }
