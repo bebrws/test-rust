@@ -1,5 +1,5 @@
-# From:
-# https://nickbryan.co.uk/software/using-a-type-map-for-dependency-injection-in-rust/
+//  From:
+//  https://nickbryan.co.uk/software/using-a-type-map-for-dependency-injection-in-rust/
 
 use std::{
     any::{Any, TypeId},
